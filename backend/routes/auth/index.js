@@ -25,6 +25,32 @@ router.post(
  * POST
  * auth/login
  */
+
 router.post("/login", AuthController.login);
+
+/**
+ * POST
+ * auth/refresh-token
+ *
+ * body
+ * {
+ *    "refreshToken": 'rf-token'
+ * }
+ */
+
+router.post("/refresh-token", AuthController.refreshToken);
+
+/**
+ * POST
+ * auth/logout
+ *
+ * body
+ * {
+ *    "refreshToken": 'rf-token'
+ * }
+ *
+ */
+
+router.post("/logout", AuthController.logout);
 
 module.exports = router;

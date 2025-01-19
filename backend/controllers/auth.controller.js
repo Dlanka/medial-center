@@ -14,6 +14,9 @@ const redis = new Redis({
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
+const refreshTokenKey = (val) => `refresh_token:${val}`;
+const userTokensKey = (val) => `user_tokens:${val}`;
+
 const generateTokens = (user) => {
   const payload = {
     email: user.email,
@@ -38,7 +41,7 @@ const storeRefreshToken = async (userId, refreshToken) => {
   // Store token with user info and expiration
 
   await redis.setex(
-    `refresh_token:${tokenId}`,
+    refreshTokenKey(tokenId),
     7 * 24 * 60 * 60, // 7 days in seconds
     JSON.stringify({
       userId,
@@ -48,7 +51,7 @@ const storeRefreshToken = async (userId, refreshToken) => {
   );
 
   // Add to user's token set
-  await redis.sadd(`user_tokens:${userId}`, tokenId);
+  await redis.sadd(userTokensKey(userId), tokenId);
 
   return tokenId;
 };
@@ -83,7 +86,12 @@ class AuthController {
       res.status(200).json({
         message: "User login successfully",
         result: {
-          user: { email: user.email, userId: user.id, username: user.username },
+          user: {
+            email: user.email,
+            userId: user.id,
+            username: user.username,
+            tenantId: user.tenantId,
+          },
           accessToken,
           refreshToken: tokenId,
         },
@@ -93,6 +101,56 @@ class AuthController {
         error.statusCode = 500;
       }
       next(error);
+    }
+  }
+
+  static async refreshToken(req, res, next) {
+    try {
+      const { refreshToken: tokenId } = req.body;
+
+      // Get token from Redis
+      const tokenData = await redis.get(refreshTokenKey(tokenId));
+
+      if (!tokenData) {
+        const error = new Error("Invalid refresh token");
+        error.statusCode = 401;
+        throw error;
+      }
+
+      const { userId, refreshToken } = JSON.parse(tokenData);
+
+      // Verify refresh token
+      jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+
+      // Generate new access token
+      const accessToken = jwt.sign({ userId }, ACCESS_TOKEN_SECRET, {
+        expiresIn: "15m",
+      });
+
+      res.status(200).json({ result: accessToken });
+    } catch (error) {
+      if (!error.statusCode) {
+        error.statusCode = 500;
+      }
+      next(error);
+    }
+  }
+
+  static async logout(req, res, next) {
+    try {
+      const { refreshToken: tokenId } = req.body;
+      const tokenData = await redis.get(refreshTokenKey(tokenId));
+
+      if (tokenData) {
+        const { userId } = JSON.parse(tokenData);
+        // Remove refresh token
+        await redis.del(refreshTokenKey(tokenId));
+        await redis.srem(userTokensKey(userId), tokenId);
+      }
+
+      res.json({ message: "Logged out successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Logout failed" });
     }
   }
 

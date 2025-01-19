@@ -4,11 +4,15 @@ const bodyParser = require("body-parser");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 
-const adminRoutes = require("./routes/admin");
+const authRoutes = require("./routes/auth");
+const tenantRoute = require("./routes/tenant");
+
 const tenantsRoutes = require("./routes/tenants");
 
 const { mainDBConnection } = require("./config/database");
+
 const tenantMiddleware = require("./middlewares/tenant.middleware");
+const authMiddleware = require("./middlewares/auth.middleware");
 
 const fileStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -57,21 +61,22 @@ async function initializeMainDatabase() {
     console.log("Main database connected successfully.");
 
     // Sync all models in main database
-    await mainDBConnection.sync({ force: true, logging: console.log });
+    await mainDBConnection.sync({ force: false, logging: console.log });
     console.log("Main database models synchronized.");
   } catch (error) {
     console.error("Unable to connect to main database:", error);
   }
 }
 
+// Main Routes
+app.use("/auth", authRoutes);
+app.use("/tenant", tenantRoute);
+
+// app.use(authMiddleware);
 // Routes that need tenant context
-app.use("/tenant", tenantMiddleware);
 
-// Admin Routes
-app.use("/admin", adminRoutes);
-
-// /tenant/*
-app.use("/tenant", tenantsRoutes);
+// Tenants related route
+app.use("/tenants", tenantMiddleware, tenantsRoutes);
 
 // Error handle middleware
 app.use((error, req, res, next) => {

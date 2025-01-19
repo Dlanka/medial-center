@@ -1,5 +1,6 @@
 const { Sequelize } = require("sequelize");
 const { createDBName } = require("../helper");
+const PatientModel = require("../models/tenants/patient.model");
 require("dotenv").config();
 
 // Tenant connection pool
@@ -79,6 +80,9 @@ const createTenantDatabase = async (tenantId) => {
 
     // Initialize database schema
     // await initializeTenantSchema(connection);
+    PatientModel(connection);
+
+    await connection.sync({ force: true });
 
     return connection;
   } catch (error) {

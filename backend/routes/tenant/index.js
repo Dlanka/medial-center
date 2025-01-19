@@ -1,6 +1,7 @@
 const express = require("express");
-const controller = require("../../controllers/tenant.controller");
 const { body } = require("express-validator");
+
+const controller = require("../../controllers/tenant.controller");
 const Tenant = require("../../models/tenant.model");
 
 const router = express.Router();
