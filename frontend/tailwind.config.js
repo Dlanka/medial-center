@@ -24,6 +24,15 @@ export default {
         80: "#CDCFD1",
         98: "#EBEDF0",
       },
+      success: {
+        400: "#00875A",
+      },
+      error: {
+        400: "#FFB020",
+      },
+      error: {
+        400: "#DC2626",
+      },
     },
 
     fontSize: {
