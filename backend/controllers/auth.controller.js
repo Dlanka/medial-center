@@ -22,6 +22,7 @@ const generateTokens = (user) => {
     email: user.email,
     userId: user.id,
     username: user.username,
+    tenantId: user.tenantId,
   };
 
   const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
@@ -87,9 +88,6 @@ class AuthController {
         message: "User login successfully",
         result: {
           user: {
-            email: user.email,
-            userId: user.id,
-            username: user.username,
             tenantId: user.tenantId,
           },
           accessToken,

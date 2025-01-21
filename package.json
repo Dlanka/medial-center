@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "@tanstack/react-query": "^5.64.2",
-    "axios": "^1.7.9",
-    "sonner": "^1.7.2"
-  }
-}

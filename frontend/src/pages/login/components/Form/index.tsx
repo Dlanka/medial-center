@@ -5,22 +5,22 @@ import { z } from "zod";
 import Button from "@/components/Core/UI/Button";
 import FieldGroup from "@/components/Core/UI/FieldGroup";
 import InputField from "@/components/Core/UI/Fields/InputField";
+import { UsernameRegex } from "@/helper";
 
 type FormProps = { onSubmit: (values: any) => void };
 
 const schema = z.object({
-  authorize: z.union(
-    [
-      z.string().email(),
-      z.string({ required_error: "Email / Username is required" }),
-    ],
-    { message: "sasas" }
-  ),
-  // .string({ required_error: "Email / Username is required" })
-  // .or(z.string().email({ message: "Email must be a valid email" })),
+  authorize: z
+    .string({ required_error: "Email / Username is required" })
+    .min(4, {
+      message: "Minimum must contain at least 4 character(s)",
+    })
+    .regex(UsernameRegex, {
+      message: "Invalid email or username",
+    }),
   password: z
     .string({ required_error: "Password is required" })
-    .min(8, { message: "Must be 8 or more characters long" }),
+    .min(5, { message: "Minimum must be 8 or more characters long" }),
 });
 
 type FormFields = z.infer<typeof schema>;
@@ -31,6 +31,10 @@ const Form = ({ onSubmit }: FormProps) => {
     handleSubmit,
     formState: { errors },
   } = useForm<FormFields>({
+    defaultValues: {
+      authorize: "tharindu1",
+      password: "123456",
+    },
     resolver: zodResolver(schema),
   });
 

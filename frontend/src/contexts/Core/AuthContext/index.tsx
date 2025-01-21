@@ -2,6 +2,7 @@ import { api } from "@/api.service";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 import { useError } from "../ErrorContext";
+import axios from "axios";
 
 type UserData = {
   email: string | null;
@@ -42,8 +43,8 @@ export const AuthProvider = ({ children }: AppProviderProps) => {
 
   const loginHandler = React.useCallback(async (payload: LoginPayload) => {
     try {
-      // const response = await api.post("/auth/login", payload);
-      showError("Erroorr");
+      const response = await api.post("/auth/login", payload);
+      console.log(response);
     } catch (error: any) {
       showError(error);
     }

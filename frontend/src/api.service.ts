@@ -4,19 +4,16 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 
-type createAxiosParam = { token?: string; tenantId?: number };
-
-export const createAxios = (param?: createAxiosParam): AxiosInstance => {
-  return axios.create({
+export const createAxios = (): AxiosInstance => {
+  const instance = axios.create({
     baseURL: import.meta.env.VITE_BASE_URL,
     headers: {
-      Authorization: `Bearer ${param?.token || ""}`,
       Accept: "application/json",
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "X-tenant-id": param?.tenantId || 0,
     },
   });
+
+  return instance;
 };
 
 export const responseError = (error: Error) => {
@@ -80,3 +77,6 @@ export const createAPIInstance = (
 };
 
 export const api = createAxios();
+
+// Authorization: `Bearer ${param?.token || ""}`,
+// "X-tenant-id": `${param?.tenantId || 0}`,

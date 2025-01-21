@@ -20,6 +20,7 @@ export const ErrorProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const showError = (error: Error) => {
+    console.log(error);
     setGlobalError({
       message: error.message || "An unexpected error occurred",
       timestamp: new Date(),

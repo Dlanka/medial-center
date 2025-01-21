@@ -1,13 +1,18 @@
 import { toast } from "sonner";
 
 import { useError } from "@/contexts/Core/ErrorContext";
+import React from "react";
 
 const GlobalErrorHandler = () => {
   const { globalError, clearError } = useError();
 
-  if (!globalError) return null;
+  React.useEffect(() => {
+    if (!globalError?.id) return;
 
-  return toast.error(globalError?.message, { onDismiss: clearError });
+    toast.error(globalError?.message, { onDismiss: clearError });
+  }, [globalError, clearError]);
+
+  return null;
 };
 
 export default GlobalErrorHandler;

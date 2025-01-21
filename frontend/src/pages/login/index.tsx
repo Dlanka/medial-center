@@ -3,9 +3,11 @@
 import Blank from "@/components/Layout/blank.layout";
 import Form from "./Components/Form";
 import { Link } from "@tanstack/react-router";
-import { Toaster, toast } from "sonner";
+import { useAuth } from "@/contexts/Core/AuthContext";
 
 function Login() {
+  const { loginHandler } = useAuth();
+
   return (
     <Blank>
       <div className="bg-neutral-98 grid grid-rows-0 content-center min-h-screen px-3 py-4 ">
@@ -21,7 +23,7 @@ function Login() {
                 </div>
               </div>
 
-              <Form />
+              <Form onSubmit={loginHandler} />
             </div>
 
             <div className="mt-6">
