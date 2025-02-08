@@ -1,8 +1,10 @@
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
+const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
 const tenantRoute = require("./routes/tenant");
@@ -38,6 +40,15 @@ const singleImageUploader = multer({
 
 const app = express();
 
+app.use(cookieParser());
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true, // Important for cookies
+  })
+);
+
 app.use(singleImageUploader);
 app.use(bodyParser.json());
 
@@ -45,7 +56,7 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Set headers
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-tenant-id"
@@ -64,7 +75,11 @@ async function initializeMainDatabase() {
     console.log("Main database connected successfully.");
 
     // Sync all models in main database
-    await mainDBConnection.sync({ force: false, logging: console.log });
+    await mainDBConnection.sync({
+      alter: true,
+      force: false,
+      logging: console.log,
+    });
     console.log("Main database models synchronized.");
   } catch (error) {
     console.error("Unable to connect to main database:", error);

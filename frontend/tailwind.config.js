@@ -22,7 +22,12 @@ export default {
         20: "#2D3748",
         70: "#BEC0C2",
         80: "#CDCFD1",
-        98: "#EBEDF0",
+        98: "#F5F7FA",
+        99: "#F7F9FC",
+        900: "#EAEBEB",
+      },
+      gray: {
+        900: "#EAEBEB",
       },
       success: {
         400: "#00875A",
@@ -49,6 +54,12 @@ export default {
       "6xl": "2.250rem", // 36px
       "7xl": "2.562rem", // 41px
       "8xl": "2.875rem", // 46px
+
+      "icon-12": "12px",
+      "icon-16": "16px",
+      "icon-20": "20px",
+      "icon-24": "24px",
+      "icon-28": "28px",
     },
 
     fontFamily: {

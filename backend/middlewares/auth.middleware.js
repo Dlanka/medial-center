@@ -5,6 +5,10 @@ const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.get("Authorization");
 
+  const tokens = req.cookies.jwt;
+
+  console.log("tokens", tokens);
+
   const [_, token] = authHeader.split(" ");
 
   let decodeToken;

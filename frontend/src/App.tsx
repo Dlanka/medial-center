@@ -1,12 +1,12 @@
 import { RouterProvider } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
 import { router } from "@/router";
 import ErrorBoundary from "@/components/Core/ErrorBoundary";
 import { ErrorProvider } from "@/contexts/Core/ErrorContext";
 import GlobalErrorHandler from "@/components/Core/GlobalErrorHandler";
-import { AuthProvider } from "@/contexts/Core/AuthContext";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider, useAuth } from "./contexts/Core/AuthContext";
 
 // Register the router instance for type safety
 declare module "@tanstack/react-router" {
@@ -15,9 +15,15 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const Router = () => {
-  return <RouterProvider router={router} />;
-};
+function InnerApp() {
+  const auth = useAuth();
+
+  if (auth.isRefreshTokenValidating) {
+    return <div>Loading...</div>;
+  }
+
+  return <RouterProvider router={router} context={{ auth }} />;
+}
 
 const queryClient = new QueryClient();
 
@@ -33,7 +39,7 @@ const App = () => {
           <ErrorProvider>
             <GlobalErrorHandler />
             <AuthProvider>
-              <Router />
+              <InnerApp />
             </AuthProvider>
           </ErrorProvider>
         </ErrorBoundary>

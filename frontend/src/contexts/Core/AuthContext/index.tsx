@@ -1,66 +1,260 @@
-import { api } from "@/api.service";
-import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import { api } from "@/api.service";
 import { useError } from "../ErrorContext";
-import axios from "axios";
+import { InternalAxiosRequestConfig } from "axios";
+import { jwtDecode } from "jwt-decode";
+import { sleep } from "@/utility";
 
-type UserData = {
-  email: string | null;
-  userId: number | string | null;
-  tenantId: number | string | null;
+// Constants
+const STORAGE_KEY = {
+  REFRESH_TOKEN: "refreshToken",
 };
 
-type LoginPayload = {
+const API_ENDPOINT = {
+  LOGIN: "/auth/login",
+  REFRESH_TOKEN: "/auth/refresh-token",
+};
+
+// Types
+export type UserData = {
+  userId: number | string;
+  tenantId: number | string;
+};
+
+export type LoginPayload = {
   authorize: string;
   password: string;
 };
 
-type AuthState = {
-  token?: string | null;
-  refreshToken?: string | null;
+export interface AuthContext {
+  isAuthenticated: boolean | undefined;
+  token: string | null;
   user: UserData | null;
-  loginHandler: (payload: LoginPayload) => void;
-};
-
-const AuthContext = React.createContext<AuthState>({
-  token: null,
-  refreshToken: null,
-  user: null,
-  loginHandler: () => {},
-});
+  isRefreshTokenValidating: boolean | undefined;
+  loginHandler: (payload: LoginPayload) => Promise<boolean>;
+  logoutHandler: () => Promise<any>;
+}
 
 type AppProviderProps = {
   children: React.ReactNode;
 };
 
+interface CustomRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+// Context
+const AuthContext = React.createContext<AuthContext | null>(null);
+
+const useAuthState = () => {
+  const [token, setToken] = React.useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = React.useState<string | null>(null);
+  const [user, setUser] = React.useState<UserData | null | undefined>(
+    undefined
+  );
+
+  const isAuthenticated = !!user;
+
+  const updateAuthState = React.useCallback(
+    (accessToken: string, newRefreshToken: string) => {
+      setToken(accessToken);
+      setRefreshToken(newRefreshToken);
+      const { userId, tenantId }: any = jwtDecode(accessToken);
+
+      setUser({ userId, tenantId });
+      localStorage.removeItem(STORAGE_KEY.REFRESH_TOKEN);
+    },
+    []
+  );
+
+  const resetAuthState = React.useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY.REFRESH_TOKEN);
+    setToken(null);
+    setRefreshToken(null);
+    setUser(undefined);
+  }, []);
+
+  return {
+    token,
+    refreshToken,
+    user,
+    isAuthenticated,
+    updateAuthState,
+    resetAuthState,
+  };
+};
+
+// Hook for using AuthContext
+export const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+// AuthProvider component
 export const AuthProvider = ({ children }: AppProviderProps) => {
   const { showError } = useError();
-  const [token, setToken] = React.useState<string | null>(null);
-  const [user, setUser] = React.useState<UserData | null>(null);
-  const [refreshToken, setRefreshToken] = React.useState<string | null>(null);
+  const [isRefreshTokenValidating, setIsRefreshTokenValidating] =
+    React.useState<boolean | undefined>(true);
+  const {
+    token,
+    refreshToken,
+    user,
+    isAuthenticated,
+    updateAuthState,
+    resetAuthState,
+  } = useAuthState();
 
-  // api.get("/auth/");
-
-  const loginHandler = React.useCallback(async (payload: LoginPayload) => {
+  const handleRefreshToken = React.useCallback(async () => {
     try {
-      const response = await api.post("/auth/login", payload);
-      console.log(response);
-    } catch (error: any) {
-      showError(error);
+      const storedRefreshToken = localStorage.getItem(
+        STORAGE_KEY.REFRESH_TOKEN
+      );
+
+      if (!storedRefreshToken) {
+        throw new Error("No refresh token found in local storage");
+      }
+
+      const response = await api.post(API_ENDPOINT.REFRESH_TOKEN, {
+        refreshToken: storedRefreshToken,
+      });
+
+      updateAuthState(response.data.accessToken, response.data.refreshToken);
+    } catch (error) {
+      console.error("Failed to refresh token:", error);
+      resetAuthState();
+    } finally {
+      setIsRefreshTokenValidating(false);
     }
   }, []);
 
-  const values = { token, refreshToken, user, loginHandler };
+  // Initial token refresh
+  React.useEffect(() => {
+    handleRefreshToken();
+  }, []);
 
-  return <AuthContext.Provider value={values}>{children}</AuthContext.Provider>;
-};
+  // Save refresh token before unload
+  React.useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (refreshToken) {
+        localStorage.setItem(STORAGE_KEY.REFRESH_TOKEN, refreshToken);
+      }
+    };
 
-export const useAuth = () => {
-  const context = React.useContext(AuthContext);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    // return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [refreshToken]);
 
-  if (!context) {
-    throw new Error("Please use auth hook withing the context provider");
-  }
+  // Login handler
+  const loginHandler = React.useCallback(
+    (payload: LoginPayload): Promise<boolean> => {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const response = await api.post(API_ENDPOINT.LOGIN, payload);
 
-  return context;
+          if (response.status !== 200) {
+            resetAuthState();
+            throw new Error("Login failed");
+          }
+
+          updateAuthState(
+            response.data.result.accessToken,
+            response.data.result.refreshToken
+          );
+
+          resolve(true);
+        } catch (error: any) {
+          reject(false);
+          resetAuthState();
+          showError(error);
+        }
+      });
+    },
+    [updateAuthState, resetAuthState, showError]
+  );
+
+  // Logout handler
+  const logoutHandler = React.useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await api.post("/auth/logout", { refreshToken });
+
+      if (res.status !== 200) {
+        throw new Error("Failed to logout");
+      }
+
+      resetAuthState();
+
+      await sleep(10);
+
+      return Promise.resolve(true);
+    } catch (error: any) {
+      showError(error);
+      return Promise.reject(false);
+    }
+  }, [resetAuthState, refreshToken, showError]);
+
+  console.log("isAuthenticated", user);
+
+  // Auth interceptor
+  React.useEffect(() => {
+    const interceptor = api.interceptors.request.use(
+      (config: CustomRequestConfig) => {
+        if (!config._retry && token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      }
+    );
+
+    return () => api.interceptors.request.eject(interceptor);
+  }, [token]);
+
+  // Refresh token interceptor
+  React.useEffect(() => {
+    const interceptor = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          refreshToken
+        ) {
+          originalRequest._retry = true;
+          try {
+            const response = await api.post(API_ENDPOINT.REFRESH_TOKEN, {
+              refreshToken,
+            });
+            updateAuthState(
+              response.data.result.accessToken,
+              response.data.result.refreshToken
+            );
+            originalRequest.headers.Authorization = `Bearer ${response.data.result.accessToken}`;
+            return api(originalRequest);
+          } catch (refreshError) {
+            resetAuthState();
+            return Promise.reject(refreshError);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => api.interceptors.response.eject(interceptor);
+  }, [refreshToken, updateAuthState, resetAuthState]);
+
+  const contextValue: AuthContext = {
+    token,
+    user: user ?? null,
+    isAuthenticated,
+    isRefreshTokenValidating,
+    loginHandler,
+    logoutHandler,
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 };

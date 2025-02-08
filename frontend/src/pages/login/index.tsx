@@ -1,12 +1,35 @@
 // type Props = {};
+import React from "react";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 
 import Blank from "@/components/Layout/blank.layout";
 import Form from "./Components/Form";
-import { Link } from "@tanstack/react-router";
-import { useAuth } from "@/contexts/Core/AuthContext";
+import { LoginPayload, useAuth } from "@/contexts/Core/AuthContext";
+import { Route } from "@/routes/login";
+import { sleep } from "@/utility";
 
 function Login() {
+  const router = useRouter();
+  const navigate = useNavigate();
   const { loginHandler } = useAuth();
+  const search = Route.useSearch();
+
+  const onLogin = React.useCallback(async (payload: LoginPayload) => {
+    try {
+      const isDone = await loginHandler(payload);
+
+      if (!isDone) {
+        return;
+      }
+
+      await router.invalidate();
+
+      await sleep(1);
+
+      // Redirect to dashboard
+      await navigate({ to: search?.redirect || "/" });
+    } catch (error) {}
+  }, []);
 
   return (
     <Blank>
@@ -23,7 +46,7 @@ function Login() {
                 </div>
               </div>
 
-              <Form onSubmit={loginHandler} />
+              <Form onSubmit={onLogin} />
             </div>
 
             <div className="mt-6">

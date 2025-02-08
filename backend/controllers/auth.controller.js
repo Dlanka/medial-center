@@ -19,10 +19,8 @@ const userTokensKey = (val) => `user_tokens:${val}`;
 
 const generateTokens = (user) => {
   const payload = {
-    email: user.email,
     userId: user.id,
-    username: user.username,
-    tenantId: user.tenantId,
+    tenantId: user.tenantId || null,
   };
 
   const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
@@ -84,12 +82,16 @@ class AuthController {
 
       const tokenId = await storeRefreshToken(user.id, refreshToken);
 
+      res.cookie("jwt", accessToken, {
+        httpOnly: true, // Prevents JavaScript access
+        secure: false, // Only sent over HTTPS
+        sameSite: "strict", // CSRF protection
+        maxAge: 60000, // 1 hour in milliseconds
+      });
+
       res.status(200).json({
         message: "User login successfully",
         result: {
-          user: {
-            tenantId: user.tenantId,
-          },
           accessToken,
           refreshToken: tokenId,
         },
@@ -120,12 +122,18 @@ class AuthController {
       // Verify refresh token
       jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
 
-      // Generate new access token
-      const accessToken = jwt.sign({ userId }, ACCESS_TOKEN_SECRET, {
-        expiresIn: "15m",
-      });
+      const user = await UserService.findById(userId);
 
-      res.status(200).json({ result: accessToken });
+      // Generate new access token
+      const accessToken = jwt.sign(
+        { userId: user.id, tenantId: user.tenantId },
+        ACCESS_TOKEN_SECRET,
+        {
+          expiresIn: "15m",
+        }
+      );
+
+      res.status(200).json({ accessToken, refreshToken: tokenId });
     } catch (error) {
       if (!error.statusCode) {
         error.statusCode = 500;

@@ -76,7 +76,18 @@ export const createAPIInstance = (
   return instance;
 };
 
-export const api = createAxios();
+export default axios.create({
+  baseURL: import.meta.env.VITE_BASE_URL,
+});
+
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_BASE_URL,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
 
 // Authorization: `Bearer ${param?.token || ""}`,
 // "X-tenant-id": `${param?.tenantId || 0}`,

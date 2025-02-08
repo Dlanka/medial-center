@@ -27,6 +27,10 @@ class UserService {
     return await User.findOne(options);
   }
 
+  static async findById(id) {
+    return await User.findByPk(id);
+  }
+
   static isFieldsValid(req) {
     const errors = validationResult(req);
 
